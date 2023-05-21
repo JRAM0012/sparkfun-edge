@@ -23,6 +23,7 @@ TOOLCHAIN_ROOT := downloads/gcc_embedded/
 TOOLCHAIN_PREFIX := $(TOOLCHAIN_ROOT)/bin/arm-none-eabi-
 CXX := $(TOOLCHAIN_PREFIX)g++
 CC := $(TOOLCHAIN_PREFIX)gcc
+OC := $(TOOLCHAIN_PREFIX)objcopy
 AR := $(TOOLCHAIN_PREFIX)ar
 ARFLAGS := -r
 
@@ -212,3 +213,18 @@ person_detection: libtflm
 
 examples: hello_world magic_wand micro_speech person_detection
 
+prepare_micro_speech: micro_speech
+	$(OC) gen/bin/micro_speech gen/bin/micro_speech.bin -O binary
+	python3 third_party/AmbiqSuite-Rel2.2.0/tools/apollo3_scripts/create_cust_image_blob.py  \
+		--bin gen/bin/micro_speech.bin  \
+		--load-address 0xC000 \
+		--magic-num 0xCB \
+		-o gen/bin/main_nonsecure_ota \
+		--version 0x0
+	python3 third_party/AmbiqSuite-Rel2.2.0/tools/apollo3_scripts/create_cust_wireupdate_blob.py \
+		--load-address 0x20000 \
+		--bin gen/bin/main_nonsecure_ota.bin -i 6 -o gen/bin/main_nonsecure_wire --options 0x1
+	
+upload_micro_speech: prepare_micro_speech
+	sudo python3 third_party/AmbiqSuite-Rel2.2.0/tools/apollo3_scripts/uart_wired_update.py \
+		-b 921600 /dev/ttyUSB0 -r 1 -f gen/bin/main_nonsecure_wire.bin -i 6

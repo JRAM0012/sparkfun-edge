@@ -1,3 +1,4 @@
 downloads
 gen
 *.swp
+__pycache__
