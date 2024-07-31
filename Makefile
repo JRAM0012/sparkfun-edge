@@ -211,12 +211,29 @@ person_detection: libtflm
 	@mkdir -p $(BINDIR)
 	$(CXX) $(CXXFLAGS) $(PERSON_DETECTION_SRCS) $(PERSON_DETECTION_INCLUDES) $(LIBTFLM) $(LDFLAGS) $(EXTRA_LIBS) -o $(BINDIR)/$@
 
+
+LED_BLINKER_SRCS := $(wildcard examples/led_blinker/*.cc)
+LED_BLINKER_INCLUDES := $(INCLUDES)
+
+led_blinker: $(LIBTFLM)
+	@mkdir -p $(BINDIR)
+	$(CXX) $(CXXFLAGS) $(LED_BLINKER_SRCS)       $(LED_BLINKER_INCLUDES)    $(LIBTFLM) $(LDFLAGS) $(EXTRA_LIBS) -o $(BINDIR)/$@
+
 examples: hello_world magic_wand micro_speech person_detection
 
-prepare_micro_speech: micro_speech
-	$(OBJCOPY) gen/bin/micro_speech gen/bin/micro_speech.bin -O binary
+PROJECT ?= micro_speech
+PROJECT_DIR := examples/$(PROJECT)
+PROJECT_OBJS := $(patsubst %.cc,%.o,$(wildcard $(PROJECT_DIR)/*.cc))
+
+echoproject:
+	@echo $(PROJECT)
+	@echo $(PROJECT_DIR)
+	@echo $(PROJECT_OBJS)
+
+prepare_code:
+	$(OBJCOPY) gen/bin/$(PROJECT) gen/bin/$(PROJECT).bin -O binary
 	python3 $(APOLLO3_SDK)/tools/apollo3_scripts/create_cust_image_blob.py  \
-		--bin gen/bin/micro_speech.bin  \
+		--bin gen/bin/$(PROJECT).bin  \
 		--load-address 0xC000 \
 		--magic-num 0xCB \
 		-o gen/bin/main_nonsecure_ota \
@@ -225,6 +242,6 @@ prepare_micro_speech: micro_speech
 		--load-address 0x20000 \
 		--bin gen/bin/main_nonsecure_ota.bin -i 6 -o gen/bin/main_nonsecure_wire --options 0x1
 	
-upload_micro_speech: prepare_micro_speech
+upload_code: prepare_code
 	sudo python3 $(APOLLO3_SDK)/tools/apollo3_scripts/uart_wired_update.py \
 		-b 921600 /dev/ttyUSB0 -r 1 -f gen/bin/main_nonsecure_wire.bin -i 6
